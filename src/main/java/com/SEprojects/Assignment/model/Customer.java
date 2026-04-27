@@ -9,7 +9,7 @@ public class Customer {
     private Long id;
     private String name;
     private Date dob;
-    private List<String> mobileNumbers = new ArrayList<>();
+    private List<CustomerMobile> mobileNumbers = new ArrayList<>();
     private List<Address> addresses = new ArrayList<>();
     private  List<Customer> familyMembers = new ArrayList<>();
 
@@ -39,11 +39,11 @@ public class Customer {
         this.dob = dob;
     }
 
-    public List<String> getMobileNumbers() {
+    public List<CustomerMobile> getMobileNumbers() {
         return mobileNumbers;
     }
 
-    public void setMobileNumbers(List<String> mobileNumbers) {
+    public void setMobileNumbers(List<CustomerMobile> mobileNumbers) {
         this.mobileNumbers = mobileNumbers;
     }
 

@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS customer_address(
     address_line_2 VARCHAR(255),
     city_id INT NOT NULL,
     FOREIGN KEY (customer_id) REFERENCES customer(id) ON DELETE CASCADE,
-    FOREIGN KEY (city_id) REFERENCES
+    FOREIGN KEY (city_id) REFERENCES city(id)
 );
 
 CREATE TABLE IF NOT EXISTS customer_family_member(

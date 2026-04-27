@@ -2,6 +2,7 @@ package com.SEprojects.Assignment.repo;
 
 import com.SEprojects.Assignment.model.Address;
 import com.SEprojects.Assignment.model.Customer;
+import com.SEprojects.Assignment.model.CustomerMobile;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Repository;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.List;
 
 @Repository
 public class CustomerRepo {
@@ -88,5 +90,33 @@ public class CustomerRepo {
                 }
             });
         }
+    }
+
+    public Customer findCustomerById(Long id) {
+        String sql = "SELECT * FROM customer WHERE id = ?";
+        List<Customer> customers = jdbcTemplate.query(sql, new Object[]{id}, (rs, rowNum) -> {
+            Customer c = new Customer();
+            c.setId(rs.getLong("id"));
+            c.setName(rs.getString("name"));
+            c.setDob(rs.getDate("dob"));
+            c.setNic(rs.getString("nic"));
+            return c;
+        });
+
+        if (customers.isEmpty()) return null;
+        Customer customer  = customers.get(0);
+
+        //fetch customer mobile
+        jdbcTemplate.query("SELECT * FROM customer_mobile_number WHERE customer_id = ?", new Object[]{id},(rs,rowNum) ->{
+            CustomerMobile mobile = new CustomerMobile();
+            mobile.setId(rs.getLong("customer_id"));
+            mobile.setMobileNo(rs.getString("mobile_number"));
+            customer.getMobileNumbers().add(mobile);
+            return null;
+        });
+
+
+
+        return customer;
     }
 }

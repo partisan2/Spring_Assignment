@@ -9,6 +9,7 @@ public class Customer {
     private Long id;
     private String name;
     private Date dob;
+    private String nic;
     private List<CustomerMobile> mobileNumbers = new ArrayList<>();
     private List<Address> addresses = new ArrayList<>();
     private  List<Customer> familyMembers = new ArrayList<>();
@@ -37,6 +38,14 @@ public class Customer {
 
     public void setDob(Date dob) {
         this.dob = dob;
+    }
+
+    public String getNic() {
+        return nic;
+    }
+
+    public void setNic(String nic) {
+        this.nic = nic;
     }
 
     public List<CustomerMobile> getMobileNumbers() {

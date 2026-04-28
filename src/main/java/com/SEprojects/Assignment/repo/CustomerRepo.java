@@ -13,7 +13,10 @@ import org.springframework.stereotype.Repository;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Repository
 public class CustomerRepo {
@@ -75,6 +78,83 @@ public class CustomerRepo {
                 }
             });
         }
+    }
+
+    public void saveCustomersBatch(List<Customer> customers) {
+        String sql = "INSERT INTO customer (name, dob, nic) VALUES (?,?,?) ON DUPLICATE KEY UPDATE name=VALUES(name), dob=VALUES(dob)";
+        jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
+            @Override
+            public void setValues(PreparedStatement ps, int i) throws SQLException {
+                Customer customer = customers.get(i);
+                ps.setString(1, customer.getName());
+                ps.setDate(2, new java.sql.Date(customer.getDob().getTime()));
+                ps.setString(3, customer.getNic());
+            }
+
+            @Override
+            public int getBatchSize() {
+                return customers.size();
+            }
+        });
+    }
+
+    public void deleteRelationsForIds(List<Long> customerIds) {
+        if (customerIds == null || customerIds.isEmpty()) return;
+        String inSql = customerIds.stream().map(Object::toString).collect(Collectors.joining(","));
+        jdbcTemplate.update("DELETE FROM customer_mobile_number WHERE customer_id IN (" + inSql + ")");
+        jdbcTemplate.update("DELETE FROM customer_address WHERE customer_id IN (" + inSql + ")");
+    }
+
+    public void batchSaveMobiles(List<CustomerMobile> mobiles) {
+        if (mobiles == null || mobiles.isEmpty()) return;
+        String sql = "INSERT INTO customer_mobile_number( customer_id, mobile_number ) VALUES (?,?)";
+        jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
+            @Override
+            public void setValues(PreparedStatement ps, int i) throws SQLException {
+                ps.setLong(1, mobiles.get(i).getCustomerId());
+                ps.setString(2, mobiles.get(i).getMobileNo());
+            }
+            @Override
+            public int getBatchSize() { return mobiles.size(); }
+        });
+    }
+
+    public void batchSaveAddresses(List<Address> addresses) {
+        if (addresses == null || addresses.isEmpty()) return;
+        String sql = "INSERT INTO customer_address( customer_id, address_line_1, address_line_2, city_id ) VALUES (?,?,?,?)";
+        jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
+            @Override
+            public void setValues(PreparedStatement ps, int i) throws SQLException {
+                Address addr = addresses.get(i);
+                ps.setLong(1, addr.getCustomerId());
+                ps.setString(2, addr.getAddressLine1());
+                ps.setString(3, addr.getAddressLine2());
+                ps.setInt(4, addr.getCityId());
+            }
+            @Override
+            public int getBatchSize() { return addresses.size(); }
+        });
+    }
+
+    public Map<String, Integer> getCityNameToIdMap() {
+        String sql = "SELECT ci.id, ci.name, co.name as country_name FROM city ci JOIN country co ON ci.country_id = co.id";
+        Map<String, Integer> map = new HashMap<>();
+        jdbcTemplate.query(sql, (rs) -> {
+            String key = (rs.getString("name") + "|" + rs.getString("country_name")).toLowerCase();
+            map.put(key, rs.getInt("id"));
+        });
+        return map;
+    }
+
+    public Map<String, Long> getNicToIdMap(List<String> nics) {
+        if (nics == null || nics.isEmpty()) return new HashMap<>();
+        String inSql = nics.stream().map(n -> "'" + n + "'").collect(Collectors.joining(","));
+        String sql = "SELECT id, nic FROM customer WHERE nic IN (" + inSql + ")";
+        Map<String, Long> map = new HashMap<>();
+        jdbcTemplate.query(sql, (rs) -> {
+            map.put(rs.getString("nic"), rs.getLong("id"));
+        });
+        return map;
     }
 
     public void updateCustomer(Customer customer) {

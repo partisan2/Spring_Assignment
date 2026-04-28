@@ -68,6 +68,11 @@
 			<version>5.2.3</version>
 		</dependency>
 		<dependency>
+			<groupId>com.github.pjfanning</groupId>
+			<artifactId>excel-streaming-reader</artifactId>
+			<version>4.0.5</version>
+		</dependency>
+		<dependency>
 			<groupId>commons-io</groupId>
 			<artifactId>commons-io</artifactId>
 			<version>2.11.0</version>

@@ -10,7 +10,7 @@ public class CustomerDTO {
     private String nic;
     private List<CustomerMobileDTO> mobileNumbers = new ArrayList<>();
     private List<AddressDTO> addresses = new ArrayList<>();
-    private List<Long> familyMemberIds = new ArrayList<>();
+    private List<CustomerFamilyMemberDTO> familyMembers = new ArrayList<>();
 
     public CustomerDTO() {
     }
@@ -55,11 +55,11 @@ public class CustomerDTO {
         this.addresses = addresses;
     }
 
-    public List<Long> getFamilyMemberIds() {
-        return familyMemberIds;
+    public List<CustomerFamilyMemberDTO> getFamilyMembers() {
+        return familyMembers;
     }
 
-    public void setFamilyMemberIds(List<Long> familyMemberIds) {
-        this.familyMemberIds = familyMemberIds;
+    public void setFamilyMembers(List<CustomerFamilyMemberDTO> familyMembers) {
+        this.familyMembers = familyMembers;
     }
 }

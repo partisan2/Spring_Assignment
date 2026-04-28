@@ -5,23 +5,14 @@ import java.util.Date;
 import java.util.List;
 
 public class CustomerDTO {
-    private Long id;
     private String name;
     private Date dob;
     private String nic;
     private List<CustomerMobileDTO> mobileNumbers = new ArrayList<>();
     private List<AddressDTO> addresses = new ArrayList<>();
-    private List<CustomerDTO> familyMembers = new ArrayList<>();
+    private List<Long> familyMemberIds = new ArrayList<>();
 
     public CustomerDTO() {
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
     }
 
     public String getName() {
@@ -64,11 +55,11 @@ public class CustomerDTO {
         this.addresses = addresses;
     }
 
-    public List<CustomerDTO> getFamilyMembers() {
-        return familyMembers;
+    public List<Long> getFamilyMemberIds() {
+        return familyMemberIds;
     }
 
-    public void setFamilyMembers(List<CustomerDTO> familyMembers) {
-        this.familyMembers = familyMembers;
+    public void setFamilyMemberIds(List<Long> familyMemberIds) {
+        this.familyMemberIds = familyMemberIds;
     }
 }

@@ -41,19 +41,55 @@ public class CustomerRepo {
         Long customerId = key.longValue();
         customer.setId(customerId);
 
-        if (customer.getMobileNumbers() != null){
-            customer.getMobileNumbers().forEach(customerMobile -> customerMobile.setId(customerId));
-        }
-
-        if (customer.getAddresses() != null){
-            customer.getAddresses().forEach(customerAddress -> customerAddress.setId(customerId));
-        }
-
-        saveMobileAndAddress(customer);
+        saveRelations(customer);
         return customerId;
     }
 
-    private void saveMobileAndAddress(Customer customer) {
+    public void addFamilyMembers(Long customerId, List<Long> familyMemberIds) {
+        if (familyMemberIds != null && !familyMemberIds.isEmpty()) {
+            String sql = "INSERT IGNORE INTO customer_family_member( customer_id, family_member_id ) VALUES (?,?)";
+            // Forward link
+            jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
+                @Override
+                public void setValues(PreparedStatement ps, int i) throws SQLException {
+                    ps.setLong(1, customerId);
+                    ps.setLong(2, familyMemberIds.get(i));
+                }
+
+                @Override
+                public int getBatchSize() {
+                    return familyMemberIds.size();
+                }
+            });
+            // Reverse link
+            jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
+                @Override
+                public void setValues(PreparedStatement ps, int i) throws SQLException {
+                    ps.setLong(1, familyMemberIds.get(i));
+                    ps.setLong(2, customerId);
+                }
+
+                @Override
+                public int getBatchSize() {
+                    return familyMemberIds.size();
+                }
+            });
+        }
+    }
+
+    public void updateCustomer(Customer customer) {
+        String sql = "UPDATE customer SET name = ?, dob = ?, nic = ? WHERE id = ?";
+        jdbcTemplate.update(sql, customer.getName(), new java.sql.Date(customer.getDob().getTime()), customer.getNic(), customer.getId());
+
+        // Delete existing relations and re-insert (simple approach for minimal code)
+        jdbcTemplate.update("DELETE FROM customer_mobile_number WHERE customer_id = ?", customer.getId());
+        jdbcTemplate.update("DELETE FROM customer_address WHERE customer_id = ?", customer.getId());
+        jdbcTemplate.update("DELETE FROM customer_family_member WHERE customer_id = ?", customer.getId());
+
+        saveRelations(customer);
+    }
+
+    private void saveRelations(Customer customer) {
         //save mobile number
         if (customer.getMobileNumbers() != null && !customer.getMobileNumbers().isEmpty()){
             String sql = "INSERT INTO customer_mobile_number( customer_id, mobile_number ) VALUES (?,?)";
@@ -81,12 +117,43 @@ public class CustomerRepo {
                     ps.setLong(1, customer.getId());
                     ps.setString(2, address.getAddressLine1());
                     ps.setString(3, address.getAddressLine2());
-                    ps.setString(4, address.getCityId());
+                    ps.setInt(4, address.getCityId());
                 }
 
                 @Override
                 public int getBatchSize() {
                     return customer.getAddresses().size();
+                }
+            });
+        }
+
+        //save family members (Bidirectional)
+        if (customer.getFamilyMembers() != null && !customer.getFamilyMembers().isEmpty()){
+            String sql = "INSERT IGNORE INTO customer_family_member( customer_id, family_member_id ) VALUES (?,?)";
+            jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
+                @Override
+                public void setValues(PreparedStatement ps, int i) throws SQLException {
+                    ps.setLong(1, customer.getId());
+                    ps.setLong(2, customer.getFamilyMembers().get(i).getId());
+                }
+
+                @Override
+                public int getBatchSize() {
+                    return customer.getFamilyMembers().size();
+                }
+            });
+
+            // Add reverse relationship
+            jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
+                @Override
+                public void setValues(PreparedStatement ps, int i) throws SQLException {
+                    ps.setLong(1, customer.getFamilyMembers().get(i).getId());
+                    ps.setLong(2, customer.getId());
+                }
+
+                @Override
+                public int getBatchSize() {
+                    return customer.getFamilyMembers().size();
                 }
             });
         }
@@ -106,17 +173,75 @@ public class CustomerRepo {
         if (customers.isEmpty()) return null;
         Customer customer  = customers.get(0);
 
+        fetchRelations(customer);
+
+        return customer;
+    }
+
+    private void fetchRelations(Customer customer) {
         //fetch customer mobile
-        jdbcTemplate.query("SELECT * FROM customer_mobile_number WHERE customer_id = ?", new Object[]{id},(rs,rowNum) ->{
+        jdbcTemplate.query("SELECT * FROM customer_mobile_number WHERE customer_id = ?", new Object[]{customer.getId()},(rs,rowNum) ->{
             CustomerMobile mobile = new CustomerMobile();
-            mobile.setId(rs.getLong("customer_id"));
+            mobile.setId(rs.getLong("id"));
             mobile.setMobileNo(rs.getString("mobile_number"));
             customer.getMobileNumbers().add(mobile);
             return null;
         });
 
+        //fetch customer address
+        jdbcTemplate.query("SELECT ca.*, ci.name as city_name, co.name as country_name FROM customer_address ca " +
+                "JOIN city ci ON ca.city_id = ci.id " +
+                "JOIN country co ON ci.country_id = co.id " +
+                "WHERE ca.customer_id = ?", new Object[]{customer.getId()},(rs,rowNum) ->{
+            Address address = new Address();
+            address.setId(rs.getLong("id"));
+            address.setAddressLine1(rs.getString("address_line_1"));
+            address.setAddressLine2(rs.getString("address_line_2"));
+            address.setCityId(rs.getInt("city_id"));
+            address.setCityName(rs.getString("city_name"));
+            address.setCountryName(rs.getString("country_name"));
+            customer.getAddresses().add(address);
+            return null;
+        });
 
-
-        return customer;
+        //fetch family members (only basic info to avoid recursion)
+        jdbcTemplate.query("SELECT c.* FROM customer c JOIN customer_family_member cfm ON c.id = cfm.family_member_id WHERE cfm.customer_id = ?", new Object[]{customer.getId()},(rs,rowNum) ->{
+            Customer fm = new Customer();
+            fm.setId(rs.getLong("id"));
+            fm.setName(rs.getString("name"));
+            fm.setDob(rs.getDate("dob"));
+            fm.setNic(rs.getString("nic"));
+            customer.getFamilyMembers().add(fm);
+            return null;
+        });
     }
+
+    public List<Customer> findAllCustomers() {
+        String sql = "SELECT * FROM customer";
+        return jdbcTemplate.query(sql, (rs, rowNum) -> {
+            Customer c = new Customer();
+            c.setId(rs.getLong("id"));
+            c.setName(rs.getString("name"));
+            c.setDob(rs.getDate("dob"));
+            c.setNic(rs.getString("nic"));
+            return c;
+        });
+    }
+
+    public Long findIdByNic(String nic) {
+        String sql = "SELECT id FROM customer WHERE nic = ?";
+        List<Long> ids = jdbcTemplate.query(sql, new Object[]{nic}, (rs, rowNum) -> rs.getLong("id"));
+        return ids.isEmpty() ? null : ids.get(0);
+    }
+
+    public boolean existsByNic(String nic) {
+        Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM customer WHERE nic = ?", new Object[]{nic}, Integer.class);
+        return count != null && count > 0;
+    }
+
+    public boolean existsByNicAndIdNot(String nic, Long id) {
+        Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM customer WHERE nic = ? AND id != ?", new Object[]{nic, id}, Integer.class);
+        return count != null && count > 0;
+    }
+
 }

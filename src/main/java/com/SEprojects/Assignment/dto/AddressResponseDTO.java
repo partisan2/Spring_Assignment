@@ -1,18 +1,18 @@
 package com.SEprojects.Assignment.dto;
 
-public class AddressDTO {
-
+public class AddressResponseDTO {
+    private Long id;
     private String addressLine1;
     private String addressLine2;
     private int cityID;
     private String cityName;
     private String countryName;
 
-    public AddressDTO() {
+    public AddressResponseDTO() {
     }
 
-    public AddressDTO( String addressLine1, String addressLine2, int cityID, String cityName, String countryName) {
-
+    public AddressResponseDTO(Long id, String addressLine1, String addressLine2, int cityID, String cityName, String countryName) {
+        this.id = id;
         this.addressLine1 = addressLine1;
         this.addressLine2 = addressLine2;
         this.cityID = cityID;
@@ -20,7 +20,13 @@ public class AddressDTO {
         this.countryName = countryName;
     }
 
+    public Long getId() {
+        return id;
+    }
 
+    public void setId(Long id) {
+        this.id = id;
+    }
 
     public String getAddressLine1() {
         return addressLine1;
